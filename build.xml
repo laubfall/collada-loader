@@ -1,0 +1,24 @@
+<project name="ColladaLoader" default="transform" basedir=".">
+	<!-- debug: -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 -->
+	<taskdef name="xjc" classname="com.sun.tools.xjc.XJC2Task">
+		<classpath>
+			<pathelement path="D:\Dokumente\eclipse-android-playground\colladajaxbplugin\target\colladajaxbplugin-0.0.1-SNAPSHOT.jar" />
+			<pathelement path="C:\Users\Daniel\.m2\repository\com\sun\xml\bind\jaxb-xjc\2.2.7\jaxb-xjc-2.2.7.jar" />
+			<pathelement path="C:\Users\Daniel\.m2\repository\com\sun\xml\bind\jaxb-core\2.2.7\jaxb-core-2.2.7.jar" />
+		</classpath>
+	</taskdef>
+
+	<target name="default">
+		<description>Baut die Objekte aus dem ColladaSchema ohne weitere Transformationen</description>
+		<xjc destdir="src-gen" package="_com.khronos.collada" schema="https://www.khronos.org/files/collada_schema_1_5" binding="src\resources\collada.xjb">
+		</xjc>
+	</target>
+
+	<target name="transform">
+		<description>Baut die Objekte aus dem ColladaSchema und führt das Collada JAXB Plugin aus.</description>
+		<xjc destdir="src" schema="https://www.khronos.org/files/collada_schema_1_5" binding="src\resources\collada.xjb">
+			<arg value="-colladaEnhancer" />
+			<arg value="-colladaTypeEhcPath=d:/Dokumente/eclipse-android-playground/ColladaLoader/src-gen/_com/khronos/collada" />
+		</xjc>
+	</target>
+</project>

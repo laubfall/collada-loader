@@ -1,0 +1,44 @@
+<bindings xmlns="http://java.sun.com/xml/ns/jaxb"
+          xmlns:xsi="http://www.w3.org/2000/10/XMLSchema-instance"
+          xmlns:xs="http://www.w3.org/2001/XMLSchema"
+		  xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+          version="2.1">
+    <bindings schemaLocation="https://www.khronos.org/files/collada_schema_1_5" version="1.0">
+	<jxb:schemaBindings>
+      <jxb:package name="com.khronos.collada"/>
+    </jxb:schemaBindings>
+        <!-- rename the value element -->
+        <bindings node="//xs:complexType[@name='morph_type']">
+            <bindings node=".//xs:sequence//xs:element[@name='source']">
+                <property name="sourceProperty"/>
+            </bindings>
+        </bindings>
+		
+		<bindings node="//xs:complexType[@name='skin_type']">
+            <bindings node=".//xs:sequence//xs:element[@name='source']">
+                <property name="sourceProperty"/>
+            </bindings>
+        </bindings>
+		
+		<jxb:bindings node="//xs:complexType[@name='matrix_type']">
+		  <jxb:class name="ColladaMatrixType"/>
+		</jxb:bindings>
+    </bindings>
+	
+	<bindings xmlns="http://java.sun.com/xml/ns/jaxb" xmlns:xsd="http://www.w3.org/2001/XMLSchema" version="2.0">
+		<bindings schemaLocation="http://www.w3.org/Math/XMLSchema/mathml2/common/common-attribs.xsd">
+			<bindings node="/xsd:schema/xsd:attributeGroup[@name='Common.attrib']/xsd:attribute[@name='class']">
+				<property name="clazz" />
+			</bindings>
+		</bindings>
+		
+		<bindings schemaLocation="http://www.w3.org/Math/XMLSchema/mathml2/presentation/scripts.xsd">
+		<jxb:schemaBindings>
+			  <jxb:package name="org.w3.mathml2"/>
+			</jxb:schemaBindings>
+			<bindings node="/xsd:schema/xsd:group[@name='mmultiscripts.content']">
+				<property name="content" />
+			</bindings>
+		</bindings>
+	</bindings>
+</bindings>

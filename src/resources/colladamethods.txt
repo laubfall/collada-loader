@@ -1,0 +1,313 @@
+// METHODEN global in collada.js definiert
+
+// wird nur von Node verwendet. Wandert nach NodeType
+function getChannelsForNode (node ) {
+
+			var channels = [];
+			var startTime = 1000000;
+			var endTime = -1000000;
+
+			for ( var id in animations ) {
+
+				var animation = animations[id];
+
+				for ( var i = 0; i < animation.channel.length; i ++ ) {
+
+					var channel = animation.channel[i];
+					var sampler = animation.sampler[i];
+					var id = channel.target.split('/')[0];
+
+					if ( id == node.id ) {
+
+						sampler.create();
+						channel.sampler = sampler;
+						startTime = Math.min(startTime, sampler.startTime);
+						endTime = Math.max(endTime, sampler.endTime);
+						channels.push(channel);
+
+					}
+
+				}
+
+			}
+
+			if ( channels.length ) {
+
+				node.startTime = startTime;
+				node.endTime = endTime;
+
+			}
+
+			return channels;
+
+		};
+		
+		
+		function fixCoords( data, sign ) {
+
+			if ( options.convertUpAxis !== true || colladaUp === options.upAxis ) {
+
+				return;
+
+			}
+
+			switch ( upConversion ) {
+
+				case 'XtoY':
+
+					var tmp = data[ 0 ];
+					data[ 0 ] = sign * data[ 1 ];
+					data[ 1 ] = tmp;
+					break;
+
+				case 'XtoZ':
+
+					var tmp = data[ 2 ];
+					data[ 2 ] = data[ 1 ];
+					data[ 1 ] = data[ 0 ];
+					data[ 0 ] = tmp;
+					break;
+
+				case 'YtoX':
+
+					var tmp = data[ 0 ];
+					data[ 0 ] = data[ 1 ];
+					data[ 1 ] = sign * tmp;
+					break;
+
+				case 'YtoZ':
+
+					var tmp = data[ 1 ];
+					data[ 1 ] = sign * data[ 2 ];
+					data[ 2 ] = tmp;
+					break;
+
+				case 'ZtoX':
+
+					var tmp = data[ 0 ];
+					data[ 0 ] = data[ 1 ];
+					data[ 1 ] = data[ 2 ];
+					data[ 2 ] = tmp;
+					break;
+
+				case 'ZtoY':
+
+					var tmp = data[ 1 ];
+					data[ 1 ] = data[ 2 ];
+					data[ 2 ] = sign * tmp;
+					break;
+
+			}
+
+		};
+		
+		function getConvertedMat4( data ) {
+
+			if ( options.convertUpAxis ) {
+
+				// First fix rotation and scale
+
+				// Columns first
+				var arr = [ data[ 0 ], data[ 4 ], data[ 8 ] ];
+				fixCoords( arr, -1 );
+				data[ 0 ] = arr[ 0 ];
+				data[ 4 ] = arr[ 1 ];
+				data[ 8 ] = arr[ 2 ];
+				arr = [ data[ 1 ], data[ 5 ], data[ 9 ] ];
+				fixCoords( arr, -1 );
+				data[ 1 ] = arr[ 0 ];
+				data[ 5 ] = arr[ 1 ];
+				data[ 9 ] = arr[ 2 ];
+				arr = [ data[ 2 ], data[ 6 ], data[ 10 ] ];
+				fixCoords( arr, -1 );
+				data[ 2 ] = arr[ 0 ];
+				data[ 6 ] = arr[ 1 ];
+				data[ 10 ] = arr[ 2 ];
+				// Rows second
+				arr = [ data[ 0 ], data[ 1 ], data[ 2 ] ];
+				fixCoords( arr, -1 );
+				data[ 0 ] = arr[ 0 ];
+				data[ 1 ] = arr[ 1 ];
+				data[ 2 ] = arr[ 2 ];
+				arr = [ data[ 4 ], data[ 5 ], data[ 6 ] ];
+				fixCoords( arr, -1 );
+				data[ 4 ] = arr[ 0 ];
+				data[ 5 ] = arr[ 1 ];
+				data[ 6 ] = arr[ 2 ];
+				arr = [ data[ 8 ], data[ 9 ], data[ 10 ] ];
+				fixCoords( arr, -1 );
+				data[ 8 ] = arr[ 0 ];
+				data[ 9 ] = arr[ 1 ];
+				data[ 10 ] = arr[ 2 ];
+
+				// Now fix translation
+				arr = [ data[ 3 ], data[ 7 ], data[ 11 ] ];
+				fixCoords( arr, -1 );
+				data[ 3 ] = arr[ 0 ];
+				data[ 7 ] = arr[ 1 ];
+				data[ 11 ] = arr[ 2 ];
+
+			}
+
+			return new THREE.Matrix4(
+				data[0], data[1], data[2], data[3],
+				data[4], data[5], data[6], data[7],
+				data[8], data[9], data[10], data[11],
+				data[12], data[13], data[14], data[15]
+				);
+
+		};
+		
+		// DL: nur verwendet von Geometry
+		function extractDoubleSided( obj, element ) {
+			obj.doubleSided = false;
+			var node = element.querySelectorAll('extra double_sided')[0];
+			if ( node ) {
+				if ( node && parseInt( node.textContent, 10 ) === 1 ) {
+					obj.doubleSided = true;
+				}
+			}
+		};
+		
+		
+				function _nsResolver( nsPrefix ) {
+
+			if ( nsPrefix == "dae" ) {
+
+				return "http://www.collada.org/2005/11/COLLADASchema";
+
+			}
+
+			return null;
+
+		};
+
+		function _bools( str ) {
+
+			var raw = _strings( str );
+			var data = [];
+
+			for ( var i = 0, l = raw.length; i < l; i ++ ) {
+
+				data.push( (raw[i] == 'true' || raw[i] == '1') ? true : false );
+
+			}
+
+			return data;
+
+		};
+
+		function _floats( str ) {
+
+			var raw = _strings(str);
+			var data = [];
+
+			for ( var i = 0, l = raw.length; i < l; i ++ ) {
+
+				data.push( parseFloat( raw[ i ] ) );
+
+			}
+
+			return data;
+
+		};
+
+		function _ints( str ) {
+
+			var raw = _strings( str );
+			var data = [];
+
+			for ( var i = 0, l = raw.length; i < l; i ++ ) {
+
+				data.push( parseInt( raw[ i ], 10 ) );
+
+			}
+
+			return data;
+
+		};
+
+		function _strings( str ) {
+
+			return ( str.length > 0 ) ? _trimString( str ).split( /\s+/ ) : [];
+
+		};
+
+		function _trimString( str ) {
+
+			return str.replace( /^\s+/, "" ).replace( /\s+$/, "" );
+
+		};
+
+		function _attr_as_float( element, name, defaultValue ) {
+
+			if ( element.hasAttribute( name ) ) {
+
+				return parseFloat( element.getAttribute( name ) );
+
+			} else {
+
+				return defaultValue;
+
+			}
+
+		};
+
+		function _attr_as_int( element, name, defaultValue ) {
+
+			if ( element.hasAttribute( name ) ) {
+
+				return parseInt( element.getAttribute( name ), 10) ;
+
+			} else {
+
+				return defaultValue;
+
+			}
+
+		};
+
+		function _attr_as_string( element, name, defaultValue ) {
+
+			if ( element.hasAttribute( name ) ) {
+
+				return element.getAttribute( name );
+
+			} else {
+
+				return defaultValue;
+
+			}
+
+		};
+
+		function _format_float( f, num ) {
+
+			if ( f === undefined ) {
+
+				var s = '0.';
+
+				while ( s.length < num + 2 ) {
+
+					s += '0';
+
+				}
+
+				return s;
+
+			}
+
+			num = num || 2;
+
+			var parts = f.toString().split( '.' );
+			parts[ 1 ] = parts.length > 1 ? parts[ 1 ].substr( 0, num ) : "0";
+
+			while( parts[ 1 ].length < num ) {
+
+				parts[ 1 ] += '0';
+
+			}
+
+			return parts.join( '.' );
+
+		};

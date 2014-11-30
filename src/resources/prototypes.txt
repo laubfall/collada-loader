@@ -1,0 +1,1403 @@
+		// Hier stehen alle prototypes aus dem JS die schon nach Java portiert wurden.
+		// Es können aber trotzdem noch vereinzelt TODOs in den Java Artefakten stehen!
+		
+		
+		function Transform () {
+
+			this.sid = ""; // OK TargetableFloat4Type.sid
+			this.type = "";
+			this.data = []; // OK TargetableFloat4Type.value
+			this.obj = null;
+
+		};
+
+		Transform.prototype.parse = function ( element ) {
+
+			this.sid = element.getAttribute( 'sid' );
+			this.type = element.nodeName;
+			this.data = _floats( element.textContent );
+			this.convert();
+
+			return this;
+
+		};
+
+				Transform.prototype.convert = function () {
+
+			switch ( this.type ) {
+
+				case 'matrix':
+
+					this.obj = getConvertedMat4( this.data );
+					break;
+
+//				case 'rotate':
+//					this.angle = THREE.Math.degToRad( this.data[3] );
+
+//				case 'translate':
+//
+//					fixCoords( this.data, -1 );
+//					this.obj = new THREE.Vector3( this.data[ 0 ], this.data[ 1 ], this.data[ 2 ] );
+//					break;
+//
+//				case 'scale':
+//
+//					fixCoords( this.data, 1 );
+//					this.obj = new THREE.Vector3( this.data[ 0 ], this.data[ 1 ], this.data[ 2 ] );
+//					break;
+
+//				default:
+//					console.log( 'Can not convert Transform of type ' + this.type );
+//					break;
+
+			}
+
+		};
+
+	Transform.prototype.apply = function () {
+			var m1 = new THREE.Matrix4();
+			return function ( matrix ) {
+				switch ( this.type ) {
+					case 'matrix':
+						matrix.multiply( this.obj );
+						break;
+					case 'translate':
+						matrix.multiply( m1.makeTranslation( this.obj.x, this.obj.y, this.obj.z ) );
+						break;
+					case 'rotate':
+						matrix.multiply( m1.makeRotationAxis( this.obj, this.angle ) );
+						break;
+					case 'scale':
+						matrix.scale( this.obj );
+						break;
+
+				}
+
+			};
+
+		}();
+
+	function Polygons () {
+			this.material = ""; // OK
+			this.count = 0; // OK
+			this.inputs = []; // OK
+			this.vcount = null;
+			this.p = []; // OK
+			this.geometry = new THREE.Geometry();
+
+		};
+
+		Polygons.prototype.setVertices = function ( vertices ) {
+			for ( var i = 0; i < this.inputs.length; i ++ ) {
+				if ( this.inputs[ i ].source == vertices.id ) {
+					this.inputs[ i ].source = vertices.input[ 'POSITION' ].source;
+				}
+			}
+		};
+
+		Polygons.prototype.parse = function ( element ) {
+
+			this.material = element.getAttribute( 'material' );
+			this.count = _attr_as_int( element, 'count', 0 );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+				var child = element.childNodes[ i ];
+
+				switch ( child.nodeName ) {
+					case 'input':
+						this.inputs.push( ( new Input() ).parse( element.childNodes[ i ] ) );
+						break;
+					case 'vcount':
+						this.vcount = _ints( child.textContent );
+						break;
+					case 'p':
+						this.p.push( _ints( child.textContent ) );
+						break;
+					case 'ph':
+						console.warn( 'polygon holes not yet supported!' );
+						break;
+					default:
+						break;
+
+				}
+			}
+			return this;
+		};
+		
+		function Geometry() {
+			this.id = "";
+			this.mesh = null;
+		};
+
+		Geometry.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute('id');
+
+			// TODO dl prüfen ob der Aufruf wirklich benötigt wird
+			// Element double_sided gibt es nicht (hab es auch nirgends gesehen)
+			extractDoubleSided( this, element );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+				var child = element.childNodes[i];
+
+				switch ( child.nodeName ) {
+					case 'mesh':
+						this.mesh = (new Mesh(this)).parse(child);
+						break;
+					case 'extra':
+						// console.log( child );
+						break;
+					default:
+						break;
+				}
+			}
+
+			return this;
+
+		};
+		
+		function Polylist () {
+			Polygons.call( this );
+			this.vcount = [];
+		};
+
+		Polylist.prototype = Object.create( Polygons.prototype );
+
+		function Triangles () {
+			Polygons.call( this );
+
+			this.vcount = 3;
+		};
+
+		Triangles.prototype = Object.create( Polygons.prototype );
+
+		// ist: InputLocalOffsetType
+		function Input () {
+
+			this.semantic = "";
+			this.offset = 0;
+			this.source = "";
+			this.set = 0;
+
+		};
+
+		Input.prototype.parse = function ( element ) {
+
+			this.semantic = element.getAttribute('semantic');
+			this.source = element.getAttribute('source').replace(/^#/, '');
+			this.set = _attr_as_int(element, 'set', -1);
+			this.offset = _attr_as_int(element, 'offset', 0);
+
+			if ( this.semantic == 'TEXCOORD' && this.set < 0 ) {
+
+				this.set = 0;
+
+			}
+
+			return this;
+
+		};
+
+	function InstanceEffect () {
+
+			this.url = "";
+
+		};
+
+		InstanceEffect.prototype.parse = function ( element ) {
+
+			this.url = element.getAttribute( 'url' ).replace( /^#/, '' );
+			return this;
+
+		};
+	
+	
+			function Source ( id ) {
+
+			this.id = id;
+			this.type = null; // dl: most likely the name
+
+		};
+
+		Source.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute( 'id' );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[i];
+
+				switch ( child.nodeName ) {
+
+					case 'bool_array':
+
+						this.data = _bools( child.textContent );
+						this.type = child.nodeName;
+						break;
+
+					case 'float_array':
+
+						this.data = _floats( child.textContent );
+						this.type = child.nodeName;
+						break;
+
+					case 'int_array':
+
+						this.data = _ints( child.textContent );
+						this.type = child.nodeName;
+						break;
+
+					case 'IDREF_array':
+					case 'Name_array':
+
+						this.data = _strings( child.textContent );
+						this.type = child.nodeName;
+						break;
+
+					case 'technique_common':
+
+						for ( var j = 0; j < child.childNodes.length; j ++ ) {
+
+							if ( child.childNodes[ j ].nodeName == 'accessor' ) {
+
+								this.accessor = ( new Accessor() ).parse( child.childNodes[ j ] );
+								break;
+
+							}
+						}
+						break;
+
+					default:
+						// console.log(child.nodeName);
+						break;
+
+				}
+
+			}
+
+			return this;
+
+		};
+		
+		Source.prototype.read = function () {
+
+			var result = [];
+
+			//for (var i = 0; i < this.accessor.params.length; i++) {
+
+				var param = this.accessor.params[ 0 ];
+
+				//console.log(param.name + " " + param.type);
+
+				switch ( param.type ) {
+
+					case 'IDREF':
+					case 'Name': case 'name':
+					case 'float':
+
+						return this.data;
+
+					case 'float4x4':
+
+						for ( var j = 0; j < this.data.length; j += 16 ) {
+
+							var s = this.data.slice( j, j + 16 );
+							var m = getConvertedMat4( s );
+							result.push( m );
+						}
+
+						break;
+
+					default:
+
+						console.log( 'ColladaLoader: Source: Read dont know how to read ' + param.type + '.' );
+						break;
+
+				}
+
+			//}
+
+			return result;
+
+		};
+
+	function InstanceController() {
+
+			this.url = "";
+			this.skeleton = [];
+			this.instance_material = [];
+
+		};
+
+		InstanceController.prototype.parse = function ( element ) {
+
+			this.url = element.getAttribute('url').replace(/^#/, '');
+			this.skeleton = [];
+			this.instance_material = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType !== 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'skeleton':
+
+						this.skeleton.push( child.textContent.replace(/^#/, '') );
+						break;
+
+					case 'bind_material':
+				
+						var instances = child.querySelectorAll('instance_material');
+						
+						for ( var j = 0; j < instances.length; j ++ ){
+							var instance = instances[j];
+							this.instance_material.push( (new InstanceMaterial()).parse(instance) );
+						}
+						break;
+
+					case 'extra':
+						break;
+
+					default:
+						break;
+				}
+			}
+			return this;
+		};
+		
+		function InstanceMaterial () {
+
+			this.symbol = "";
+			this.target = "";
+
+		};
+
+		InstanceMaterial.prototype.parse = function ( element ) {
+
+			this.symbol = element.getAttribute('symbol');
+			this.target = element.getAttribute('target').replace(/^#/, '');
+			return this;
+
+		};
+		
+		function InstanceGeometry() {
+
+			this.url = "";
+			this.instance_material = [];
+
+		};
+
+		InstanceGeometry.prototype.parse = function ( element ) {
+
+			this.url = element.getAttribute('url').replace(/^#/, '');
+			this.instance_material = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[i];
+				if ( child.nodeType != 1 ) continue;
+
+				if ( child.nodeName == 'bind_material' ) {
+
+					var instances = child.querySelectorAll('instance_material');
+						
+					for ( var j = 0; j < instances.length; j ++ ) {
+						var instance = instances[j];
+						this.instance_material.push( (new InstanceMaterial()).parse(instance) );
+					}
+
+					break;
+				}
+			}
+
+			return this;
+
+		};
+		
+		
+		function Vertices() {
+
+			this.input = {};
+
+		};
+
+		Vertices.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute('id');
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				if ( element.childNodes[i].nodeName == 'input' ) {
+
+					var input = ( new Input() ).parse( element.childNodes[ i ] );
+					this.input[ input.semantic ] = input;
+
+				}
+
+			}
+
+			return this;
+
+		};
+		
+		// Light
+
+		function Light() {
+
+			this.id = "";
+			this.name = "";
+			this.technique = "";
+
+		};
+
+		Light.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute( 'id' );
+			this.name = element.getAttribute( 'name' );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'technique_common':
+
+						this.parseCommon( child );
+						break;
+
+					case 'technique':
+
+						this.parseTechnique( child );
+						break;
+
+					default:
+						break;
+
+				}
+
+			}
+
+			return this;
+
+		};
+
+		Light.prototype.parseCommon = function ( element ) {
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				switch ( element.childNodes[ i ].nodeName ) {
+
+					case 'directional':
+					case 'point':
+					case 'spot':
+					case 'ambient':
+
+						this.technique = element.childNodes[ i ].nodeName;
+
+						var light = element.childNodes[ i ];
+
+						for ( var j = 0; j < light.childNodes.length; j ++ ) {
+
+							var child = light.childNodes[j];
+
+							switch ( child.nodeName ) {
+
+								case 'color':
+
+									var rgba = _floats( child.textContent );
+									this.color = new THREE.Color(0);
+									this.color.setRGB( rgba[0], rgba[1], rgba[2] );
+									this.color.a = rgba[3];
+									break;
+
+								case 'falloff_angle':
+
+									this.falloff_angle = parseFloat( child.textContent );
+									break;
+							}
+
+						}
+
+				}
+
+			}
+
+			return this;
+
+		};
+
+		Light.prototype.parseTechnique = function ( element ) {
+
+			this.profile = element.getAttribute( 'profile' );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+
+				switch ( child.nodeName ) {
+
+					case 'intensity':
+
+						this.intensity = parseFloat(child.textContent);
+						break;
+
+				}
+
+			}
+
+			return this;
+
+		};
+		
+		function Accessor() {
+
+			this.source = "";
+			this.count = 0;
+			this.stride = 0;
+			this.params = [];
+
+		};
+
+		Accessor.prototype.parse = function ( element ) {
+
+			this.params = [];
+			this.source = element.getAttribute( 'source' );
+			this.count = _attr_as_int( element, 'count', 0 );
+			this.stride = _attr_as_int( element, 'stride', 0 );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+
+				if ( child.nodeName == 'param' ) {
+
+					var param = {};
+					param[ 'name' ] = child.getAttribute( 'name' );
+					param[ 'type' ] = child.getAttribute( 'type' );
+					this.params.push( param );
+
+				}
+
+			}
+
+			return this;
+
+		};
+
+function _Image() {
+			this.id = "";
+			this.init_from = "";
+		};
+
+		_Image.prototype.parse = function(element) {
+			this.id = element.getAttribute('id');
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+				var child = element.childNodes[ i ];
+				if ( child.nodeName == 'init_from' ) {
+					this.init_from = child.textContent;
+				}
+			}
+			return this;
+		};
+
+		function Controller() {
+			this.id = "";
+			this.name = "";
+			this.type = "";
+			this.skin = null;
+			this.morph = null;
+
+		};
+
+		Controller.prototype.parse = function( element ) {
+			this.id = element.getAttribute('id');
+			this.name = element.getAttribute('name');
+			this.type = "none";
+
+			for ( var i = 0; i < element.childNodes.length; i++ ) {
+				var child = element.childNodes[ i ];
+				switch ( child.nodeName ) {
+					case 'skin':
+						this.skin = (new Skin()).parse(child);
+						this.type = child.nodeName;
+						break;
+					case 'morph':
+						this.morph = (new Morph()).parse(child);
+						this.type = child.nodeName;
+						break;
+					default:
+						break;
+				}
+			}
+
+			return this;
+		};
+		
+		function Material () {
+			this.id = "";
+			this.name = "";
+			this.instance_effect = null;
+		};
+
+		Material.prototype.parse = function ( element ) {
+			this.id = element.getAttribute( 'id' );
+			this.name = element.getAttribute( 'name' );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+				if ( element.childNodes[ i ].nodeName == 'instance_effect' ) {
+					this.instance_effect = ( new InstanceEffect() ).parse( element.childNodes[ i ] );
+					break;
+				}
+			}
+			return this;
+		};
+		
+		function Animation() {
+
+			this.id = "";
+			this.name = "";
+			this.source = {};
+			this.sampler = [];
+			this.channel = [];
+
+		};
+
+		Animation.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute( 'id' );
+			this.name = element.getAttribute( 'name' );
+			this.source = {};
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+				switch ( child.nodeName ) {
+					case 'animation':
+						var anim = ( new Animation() ).parse( child );
+						for ( var src in anim.source ) {
+							this.source[ src ] = anim.source[ src ];
+						}
+						for ( var j = 0; j < anim.channel.length; j ++ ) {
+							this.channel.push( anim.channel[ j ] );
+							this.sampler.push( anim.sampler[ j ] );
+						}
+						break;
+					case 'source':
+						var src = ( new Source() ).parse( child );
+						this.source[ src.id ] = src;
+						break;
+					case 'sampler':
+						this.sampler.push( ( new Sampler( this ) ).parse( child ) );
+						break;
+					case 'channel':
+						this.channel.push( ( new Channel( this ) ).parse( child ) );
+						break;
+					default:
+						break;
+				}
+			}
+
+			return this;
+		};
+		
+		
+				// Camera
+		function Camera() {
+
+			this.id = "";
+			this.name = "";
+			this.technique = "";
+
+		};
+
+		Camera.prototype.parse = function ( element ) {
+
+			this.id = element.getAttribute( 'id' );
+			this.name = element.getAttribute( 'name' );
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'optics':
+
+						this.parseOptics( child );
+						break;
+
+					default:
+						break;
+
+				}
+
+			}
+
+			return this;
+
+		};
+
+		Camera.prototype.parseOptics = function ( element ) {
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				if ( element.childNodes[ i ].nodeName == 'technique_common' ) {
+
+					var technique = element.childNodes[ i ];
+
+					for ( var j = 0; j < technique.childNodes.length; j ++ ) {
+
+						this.technique = technique.childNodes[ j ].nodeName;
+
+						if ( this.technique == 'perspective' ) {
+
+							var perspective = technique.childNodes[ j ];
+
+							for ( var k = 0; k < perspective.childNodes.length; k ++ ) {
+
+								var param = perspective.childNodes[ k ];
+
+								switch ( param.nodeName ) {
+
+									case 'yfov':
+										this.yfov = param.textContent;
+										break;
+									case 'xfov':
+										this.xfov = param.textContent;
+										break;
+									case 'znear':
+										this.znear = param.textContent;
+										break;
+									case 'zfar':
+										this.zfar = param.textContent;
+										break;
+									case 'aspect_ratio':
+										this.aspect_ratio = param.textContent;
+										break;
+
+								}
+
+							}
+
+						} else if ( this.technique == 'orthographic' ) {
+
+							var orthographic = technique.childNodes[ j ];
+
+							for ( var k = 0; k < orthographic.childNodes.length; k ++ ) {
+
+								var param = orthographic.childNodes[ k ];
+
+								switch ( param.nodeName ) {
+
+									case 'xmag':
+										this.xmag = param.textContent;
+										break;
+									case 'ymag':
+										this.ymag = param.textContent;
+										break;
+									case 'znear':
+										this.znear = param.textContent;
+										break;
+									case 'zfar':
+										this.zfar = param.textContent;
+										break;
+									case 'aspect_ratio':
+										this.aspect_ratio = param.textContent;
+										break;
+
+								}
+							}
+						}
+					}
+				}
+			}
+			return this;
+		};
+		
+		
+		function InstanceCamera() {
+
+			this.url = "";
+
+		};
+
+		InstanceCamera.prototype.parse = function ( element ) {
+
+			this.url = element.getAttribute('url').replace(/^#/, '');
+
+			return this;
+
+		};
+		
+		function InstanceLight() {
+
+			this.url = "";
+
+		};
+
+		InstanceLight.prototype.parse = function ( element ) {
+
+			this.url = element.getAttribute('url').replace(/^#/, '');
+
+			return this;
+
+		};
+		
+		function Morph() {
+
+			this.method = null;
+			this.source = null;
+			this.targets = null;
+			this.weights = null;
+
+		};
+
+		Morph.prototype.parse = function( element ) {
+
+			var sources = {};
+			var inputs = [];
+			var i;
+
+			this.method = element.getAttribute( 'method' );
+			this.source = element.getAttribute( 'source' ).replace( /^#/, '' );
+
+			for ( i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'source':
+
+						var source = ( new Source() ).parse( child );
+						sources[ source.id ] = source;
+						break;
+
+					case 'targets':
+
+						inputs = this.parseInputs( child );
+						break;
+
+					default:
+
+						console.log( child.nodeName );
+						break;
+
+				}
+
+			}
+
+			for ( i = 0; i < inputs.length; i ++ ) {
+
+				var input = inputs[ i ];
+				var source = sources[ input.source ];
+
+				switch ( input.semantic ) {
+
+					case 'MORPH_TARGET':
+
+						this.targets = source.read();
+						break;
+
+					case 'MORPH_WEIGHT':
+
+						this.weights = source.read();
+						break;
+
+					default:
+						break;
+
+				}
+			}
+
+			return this;
+
+		};
+
+		Morph.prototype.parseInputs = function(element) {
+
+			var inputs = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[i];
+				if ( child.nodeType != 1) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'input':
+
+						inputs.push( (new Input()).parse(child) );
+						break;
+
+					default:
+						break;
+				}
+			}
+
+			return inputs;
+
+		};
+
+		Node.prototype.getChildById = function ( id, recursive ) {
+			if ( this.id == id ) {
+				return this;
+			}
+
+			if ( recursive ) {
+				for ( var i = 0; i < this.nodes.length; i ++ ) {
+					var n = this.nodes[ i ].getChildById( id, recursive );
+					if ( n ) {
+						return n;
+					}
+				}
+			}
+			return null;
+
+		};
+
+		Node.prototype.getChildBySid = function ( sid, recursive ) {
+			if ( this.sid == sid ) {
+				return this;
+			}
+
+			if ( recursive ) {
+				for ( var i = 0; i < this.nodes.length; i ++ ) {
+					var n = this.nodes[ i ].getChildBySid( sid, recursive );
+					if ( n ) {
+						return n;
+					}
+				}
+			}
+
+			return null;
+
+		};
+		
+		Node.prototype.getTransformBySid = function ( sid ) {
+
+			for ( var i = 0; i < this.transforms.length; i ++ ) {
+
+				if ( this.transforms[ i ].sid == sid ) return this.transforms[ i ];
+
+			}
+
+			return null;
+
+		};
+		
+		// keine Aufruf dieser Methode gefunden (im original js gesucht)
+		Node.prototype.getChannelForTransform = function( transformSid ) {
+
+			for ( var i = 0; i < this.channels.length; i ++ ) {
+
+				var channel = this.channels[i];
+				var parts = channel.target.split('/');
+				var id = parts.shift();
+				var sid = parts.shift();
+				var dotSyntax = (sid.indexOf(".") >= 0);
+				var arrSyntax = (sid.indexOf("(") >= 0);
+				var arrIndices;
+				var member;
+
+				if ( dotSyntax ) {
+					parts = sid.split(".");
+					sid = parts.shift();
+					member = parts.shift();
+				} else if ( arrSyntax ) {
+					arrIndices = sid.split("(");
+					sid = arrIndices.shift();
+
+					for ( var j = 0; j < arrIndices.length; j ++ ) {
+						arrIndices[ j ] = parseInt( arrIndices[ j ].replace( /\)/, '' ) );
+					}
+				}
+
+				if ( sid == transformSid ) {
+					channel.info = { sid: sid, dotSyntax: dotSyntax, arrSyntax: arrSyntax, arrIndices: arrIndices };
+					return channel;
+				}
+			}
+
+			return null;
+
+		};
+
+		Node.prototype.updateMatrix = function () {
+			this.matrix.identity();
+			for ( var i = 0; i < this.transforms.length; i ++ ) {
+				this.transforms[ i ].apply( this.matrix );
+			}
+		};
+
+				Node.prototype.parse = function( element ) {
+
+			var url;
+
+			this.id = element.getAttribute('id');
+			this.sid = element.getAttribute('sid');
+			this.name = element.getAttribute('name');
+			this.type = element.getAttribute('type');
+			this.layer = element.getAttribute('layer');
+
+			this.type = this.type == 'JOINT' ? this.type : 'NODE';
+
+			this.nodes = [];
+			this.transforms = [];
+			this.geometries = [];
+			this.cameras = [];
+			this.lights = [];
+			this.controllers = [];
+			this.matrix = new THREE.Matrix4();
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'node':
+
+						this.nodes.push( ( new Node() ).parse( child ) );
+						break;
+
+					case 'instance_camera':
+
+						this.cameras.push( ( new InstanceCamera() ).parse( child ) );
+						break;
+
+					case 'instance_controller':
+
+						this.controllers.push( ( new InstanceController() ).parse( child ) );
+						break;
+
+					case 'instance_geometry':
+
+						this.geometries.push( ( new InstanceGeometry() ).parse( child ) );
+						break;
+
+					case 'instance_light':
+
+						this.lights.push( ( new InstanceLight() ).parse( child ) );
+						break;
+
+					case 'instance_node':
+
+						url = child.getAttribute( 'url' ).replace( /^#/, '' );
+						var iNode = getLibraryNode( url );
+
+						if ( iNode ) {
+
+							this.nodes.push( ( new Node() ).parse( iNode )) ;
+
+						}
+
+						break;
+
+					case 'rotate':
+					case 'translate':
+					case 'scale':
+					case 'matrix':
+					case 'lookat':
+					case 'skew':
+
+						this.transforms.push( ( new Transform() ).parse( child ) );
+						break;
+
+					case 'extra':
+						break;
+
+					default:
+
+						console.log( child.nodeName );
+						break;
+
+				}
+
+			}
+
+			// getChannelsForNode arbeitet auf animations, die müssen schon da sein.
+			// das macht es mit JAXB schwierig
+			this.channels = getChannelsForNode( this );
+			
+			bakeAnimations( this );
+			this.updateMatrix();
+
+			return this;
+
+		};
+		
+		function Node() {
+			this.id = ""; // OK
+			this.name = ""; // OK
+			this.sid = ""; // ok
+			this.nodes = []; // ok aka node (list)
+			this.controllers = []; // ok aka instance_controller
+			this.transforms = []; // ok aka lookatOrMatrixOrRotate
+			this.geometries = []; // ok aka instance_geometry
+			this.channels = [];
+			this.matrix = new THREE.Matrix4();
+
+		};
+
+		function Skin() {
+			this.source = ""; // ok
+			this.bindShapeMatrix = null; // ok
+			this.invBindMatrices = [];
+			this.joints = []; // ok
+			this.weights = []; // ok aka vertex_weights
+
+		};
+
+		Skin.prototype.parse = function( element ) {
+
+			var sources = {};
+			var joints, weights;
+
+			this.source = element.getAttribute( 'source' ).replace( /^#/, '' );
+			this.invBindMatrices = [];
+			this.joints = [];
+			this.weights = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[i];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'bind_shape_matrix':
+
+						var f = _floats(child.textContent);
+						this.bindShapeMatrix = getConvertedMat4( f );
+						break;
+
+					case 'source':
+
+						var src = new Source().parse(child);
+						sources[ src.id ] = src;
+						break;
+
+					case 'joints':
+
+						joints = child;
+						break;
+
+					case 'vertex_weights':
+
+						weights = child;
+						break;
+
+					default:
+
+						console.log( child.nodeName );
+						break;
+
+				}
+			}
+
+			this.parseJoints( joints, sources );
+			this.parseWeights( weights, sources );
+
+			return this;
+
+		};
+
+		Skin.prototype.parseJoints = function ( element, sources ) {
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'input':
+
+						var input = ( new Input() ).parse( child );
+						var source = sources[ input.source ];
+
+						if ( input.semantic == 'JOINT' ) {
+
+							this.joints = source.read();
+
+						} else if ( input.semantic == 'INV_BIND_MATRIX' ) {
+
+							this.invBindMatrices = source.read();
+
+						}
+
+						break;
+
+					default:
+						break;
+				}
+
+			}
+
+		};
+
+		Skin.prototype.parseWeights = function ( element, sources ) {
+
+			var v, vcount, inputs = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'input':
+
+						inputs.push( ( new Input() ).parse( child ) );
+						break;
+
+					case 'v':
+
+						v = _ints( child.textContent );
+						break;
+
+					case 'vcount':
+
+						vcount = _ints( child.textContent );
+						break;
+
+					default:
+						break;
+
+				}
+
+			}
+
+			var index = 0;
+
+			for ( var i = 0; i < vcount.length; i ++ ) {
+
+				var numBones = vcount[i];
+				var vertex_weights = [];
+
+				for ( var j = 0; j < numBones; j++ ) {
+
+					var influence = {};
+
+					for ( var k = 0; k < inputs.length; k ++ ) {
+
+						var input = inputs[ k ];
+						var value = v[ index + input.offset ];
+
+						switch ( input.semantic ) {
+
+							case 'JOINT':
+
+								influence.joint = value;//this.joints[value];
+								break;
+
+							case 'WEIGHT':
+
+								influence.weight = sources[ input.source ].data[ value ];
+								break;
+
+							default:
+								break;
+
+						}
+
+					}
+
+					vertex_weights.push( influence );
+					index += inputs.length;
+				}
+
+				for ( var j = 0; j < vertex_weights.length; j ++ ) {
+
+					vertex_weights[ j ].index = i;
+
+				}
+
+				this.weights.push( vertex_weights );
+
+			}
+
+		};
+		
+		function VisualScene () {
+
+			this.id = "";
+			this.name = "";
+			this.nodes = [];
+			this.scene = new THREE.Object3D();
+
+		};
+
+		VisualScene.prototype.getChildById = function( id, recursive ) {
+
+			for ( var i = 0; i < this.nodes.length; i ++ ) {
+
+				var node = this.nodes[ i ].getChildById( id, recursive );
+
+				if ( node ) {
+
+					return node;
+
+				}
+
+			}
+
+			return null;
+
+		};
+
+		VisualScene.prototype.getChildBySid = function( sid, recursive ) {
+
+			for ( var i = 0; i < this.nodes.length; i ++ ) {
+
+				var node = this.nodes[ i ].getChildBySid( sid, recursive );
+
+				if ( node ) {
+
+					return node;
+
+				}
+
+			}
+
+			return null;
+
+		};
+
+		VisualScene.prototype.parse = function( element ) {
+
+			this.id = element.getAttribute( 'id' );
+			this.name = element.getAttribute( 'name' );
+			this.nodes = [];
+
+			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+				var child = element.childNodes[ i ];
+				if ( child.nodeType != 1 ) continue;
+
+				switch ( child.nodeName ) {
+
+					case 'node':
+
+						this.nodes.push( ( new Node() ).parse( child ) );
+						break;
+
+					default:
+						break;
+
+				}
+
+			}
+
+			return this;
+
+		};
