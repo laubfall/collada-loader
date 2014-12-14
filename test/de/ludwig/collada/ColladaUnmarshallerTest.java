@@ -11,8 +11,7 @@ public class ColladaUnmarshallerTest {
 	@Test
 	public void unmarshall(){
 		ColladaUnmarshaller cu = new ColladaUnmarshaller();
-		UnmarshallResult result = cu.unmarshal(new File("test/resources/movingcube.dae"));
-		COLLADA collada = result.getDoc();
+		COLLADA collada = cu.unmarshal(new File("test/resources/movingcube.dae"));
 		Assert.assertNotNull(collada.getAsset());
 		Assert.assertNotNull(collada);
 	}
